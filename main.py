@@ -1,0 +1,12 @@
+from ai_handler import AI_Handler
+
+
+agent = AI_Handler(model_name="qwen3:8b")
+
+while True:
+	input_ = input("Type your query: ")
+
+	if input_ == "":
+		break
+
+	print(agent.invoke_agent(input_))
