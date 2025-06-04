@@ -7,7 +7,6 @@ from typing import (
 	Union
 )
 
-
 _single_literal_data_type = Literal[
 	"Job_Category",
 	"Platform",
@@ -51,6 +50,7 @@ def _compare_value(
 	Raises:
 		ValueError: If an invalid comparison operator is provided.
 	"""
+	
 	if comparison_operator == "gt":
 		return data[data[value_data_type] > value_to_compare]
 	elif comparison_operator == "ge":
@@ -77,7 +77,7 @@ def _validate_types_len(*types: Sequence[Any]) -> bool:
 	Returns:
 		bool: True if all sequences have the same length or if no sequences are provided, False otherwise.
 	"""
-
+	
 	first_len = len(types[0])
 	
 	return all(len(type_) == first_len for type_ in types)
@@ -93,7 +93,7 @@ def _validate_all_types_are_sequence(*types: Sequence[Any]) -> bool:
 	Returns:
 		bool: True if all arguments are sequences, False otherwise.
 	"""
-
+	
 	return all(isinstance(type_, abc.Sequence) for type_ in types)
 
 
@@ -111,7 +111,7 @@ def _validate_comparison_types(*types: Sequence[Any]) -> bool:
 	Returns:
 		bool: True if all arguments are sequences or if none are sequences, False otherwise.
 	"""
-
+	
 	return all(isinstance(type_, abc.Sequence) for type_ in types) or not any(isinstance(type_, abc.Sequence) for type_ in types)
 
 
@@ -140,7 +140,7 @@ def _compare_values(
 		ValueError: If the arguments are not consistently single values or sequences, or if sequences
 					have mismatched lengths, or if an invalid comparison operator is provided.
 	"""
-
+	
 	if not _validate_comparison_types(value_data_type, comparison_operator, values_to_compare):
 		raise ValueError("Both arguments must be either a sequence or a single value.")
 	
@@ -168,12 +168,12 @@ class DataHandler:
 	Attributes:
 		data (pandas.DataFrame): The loaded pandas DataFrame containing the dataset.
 	"""
-
+	
 	def __init__(self):
 		"""
 		Initializes the DataHandler by loading the dataset from "freelancer_earnings_bd.csv".
 		"""
-
+		
 		self.data = pandas.read_csv("freelancer_earnings_bd.csv")
 	
 	def get_all_data_types(self, data_to_group: _literal_data_type):

@@ -1,13 +1,15 @@
 import sys
 import warnings
+import traceback
 import subprocess
+from typing import Literal
 from data_handler import DataHandler
 from langchain_ollama import ChatOllama
 from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import create_react_agent
 
 
-def setup_ollama(model_name: str) -> ChatOllama:
+def _setup_ollama(model_name: str) -> ChatOllama:
 	"""
 	Sets up the Ollama environment by checking installation and pulling the specified model.
 
@@ -58,23 +60,35 @@ class AI_Handler:
 
 	Attributes:
 		model_name (str): The name of the Ollama model used by the agent.
+		messages_cache_size (int): The maximum number of messages to store in the cache.
 		data_handler (DataHandler): An instance of the DataHandler class, containing the dataset and analysis methods.
 		graph (CompiledGraph): The compiled LangGraph agent ready to process queries.
+		messages_cache (dict[str, list[dict[str, str]]]): A dictionary containing a list of message history for the agent.
 	"""
-
-	def __init__(self, model_name: str):
+	
+	def __init__(self, model_name: str, messages_cache_size: int):
 		"""
 		Initializes the AI_Handler, loading the dataset and building the AI graph.
 
 		Args:
 			model_name (str): The name of the Ollama model to use (e.g., "llama3.1:8b").
-		"""
+			messages_cache_size (int): The maximum number of messages to store in the cache for conversation history.
 
+		Raises:
+			ValueError: If `messages_cache_size` is not a positive integer.
+		"""
+		
+		if not isinstance(messages_cache_size, int) or messages_cache_size <= 0:
+			raise ValueError("messages_cache_size must be a positive integer.")
+		
 		self.model_name = model_name
+		self.messages_cache_size = messages_cache_size
 		self.data_handler = DataHandler()
-		self.graph = self.build_ollama_graph()
+		self.graph = self._build_ollama_graph()
+		
+		self.messages_cache = {"messages": []}
 	
-	def build_ollama_graph(self) -> CompiledGraph:
+	def _build_ollama_graph(self) -> CompiledGraph:
 		"""
 		Builds and compiles a Langgraph agent using the specified Ollama model
 		and methods from the DataHandler as tools.
@@ -85,8 +99,8 @@ class AI_Handler:
 		Returns:
 			CompiledGraph: The compiled Langgraph agent.
 		"""
-
-		model = setup_ollama(model_name=self.model_name)
+		
+		model = _setup_ollama(model_name=self.model_name)
 		
 		return create_react_agent(
 				model=model,
@@ -106,10 +120,42 @@ class AI_Handler:
 					self.data_handler.get_data_count_percentage,
 				],
 				prompt="""
-                You are an assistant that provides helpful responses to user queries.
-                Provide responses to user in language that user uses.
-                """
+				You are an assistant that provides helpful responses to user queries.
+				Always provide responses to user in language that user uses.
+				"""
 		)
+	
+	def _add_message_to_cache(
+			self,
+			role: Literal[
+				"human",
+				"user",
+				"ai",
+				"assistant",
+				"function",
+				"tool",
+				"system",
+				"developer"
+			],
+			message: str
+	):
+		"""
+		Adds a message to the internal message cache, managing its size.
+
+		If the cache size exceeds the `messages_cache_size` limit, the oldest message is removed.
+
+		Args:
+			role (Literal["human", "user", "ai", "assistant", "function", tool", "system", "developer"]): The role of the message sender.
+			message (str): The content of the message.
+		"""
+		current_cache = self.messages_cache["messages"]
+		
+		if len(current_cache) >= self.messages_cache_size:
+			current_cache.pop(0)
+		
+		current_cache.append({"role": role, "content": message})
+		
+		self.messages_cache["messages"] = current_cache
 	
 	def invoke_agent(self, query: str) -> str:
 		"""
@@ -126,8 +172,18 @@ class AI_Handler:
 			str: The content of the agent's final message or a generic error message
 				if an exception occurred.
 		"""
-
+		
+		self._add_message_to_cache(role="user", message=query)
+		
 		try:
-			return self.graph.invoke({"messages": [{"role": "user", "content": query}]})["messages"][-1].content
+			agent_response = self.graph.invoke(self.messages_cache)["messages"][-1].content
+			self._add_message_to_cache(role="ai", message=agent_response)
+		
+			return agent_response
 		except (Exception,):
-			return "I'm sorry, I couldn't process your request."
+			exception_type, exception_value, exception_traceback = sys.exc_info()
+			error = "".join(
+					traceback.format_exception(exception_type, exception_value, exception_traceback)
+			)
+		
+			return f"I'm sorry, I couldn't process your request.\n\n{error}"
