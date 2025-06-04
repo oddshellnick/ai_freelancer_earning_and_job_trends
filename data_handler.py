@@ -1,11 +1,16 @@
+import numpy
 import pandas
+import inspect
+import functools
 from collections import abc
 from typing import (
 	Any,
+	Callable,
 	Literal,
 	Sequence,
 	Union
 )
+
 
 _single_literal_data_type = Literal[
 	"Job_Category",
@@ -158,6 +163,69 @@ def _compare_values(
 	return data
 
 
+def _read_pandas_data(data: Any) -> str:
+	"""
+	Convert various data types, including pandas DataFrames/Series and numpy arrays, into a string representation.
+
+	Handles pandas DataFrames/Series by using `.to_string()`, numpy ndarrays by converting to a list and then to string, and other types using the standard `str()` conversion.
+
+	Args:
+		data (Any): The input data to convert. Can be a pandas DataFrame, pandas Series, numpy ndarray, or any other object.
+
+	Returns:
+		str: A string representation of the input data.
+	"""
+
+	if isinstance(data, (pandas.DataFrame, pandas.Series)):
+		return data.to_string()
+
+	if isinstance(data, numpy.ndarray):
+		return str(data.tolist())
+
+	return str(data)
+
+
+def _validate_previous_stack_from_datahandler() -> bool:
+	"""
+	Checks if the immediate caller of this function is a method belonging to an instance of the DataHandler class.
+
+	This is determined by inspecting the call stack and checking the type of the 'self' parameter in the caller's frame.
+
+	Returns:
+		bool: True if the call originated from a DataHandler instance method, False otherwise.
+	"""
+
+	try:
+		self_parameter = inspect.stack()[2].frame.f_locals.get("self", None)
+		return isinstance(self_parameter, DataHandler)
+	except IndexError:
+		return False
+
+
+def tool_handler(func: Callable) -> Callable:
+	"""
+	A decorator that conditionally processes the return value of the decorated function.
+
+	If the decorated function is called from a method of a DataHandler instance (as determined by _validate_previous_stack), the function's result is returned directly. Otherwise, the result is passed through a _read_pandas_data function (assumed to process the data, e.g., read it into a pandas DataFrame) before being returned.
+
+	Args:
+		func (Callable): The function to be decorated.
+
+	Returns:
+		Callable: The wrapped function, which modifies its return behavior based on the calling context.
+	"""
+
+	@functools.wraps(func)
+	def wrapper(*args, **kwargs):
+		if _validate_previous_stack_from_datahandler():
+			return func(*args, **kwargs)
+		else:
+			result = func(*args, **kwargs)
+			return _read_pandas_data(result)
+
+	return wrapper
+
+
 class DataHandler:
 	"""
 	A class to handle operations and analysis on the freelancer earnings dataset.
@@ -176,6 +244,7 @@ class DataHandler:
 		
 		self.data = pandas.read_csv("freelancer_earnings_bd.csv")
 	
+	@tool_handler
 	def get_all_data_types(self, data_to_group: _literal_data_type):
 		"""
 		Retrieve all unique values in a specified column.
@@ -190,6 +259,7 @@ class DataHandler:
 		
 		return self.data[data_to_group].unique()
 	
+	@tool_handler
 	def get_average_value(self, data_to_search: _single_literal_data_type):
 		"""
 		Calculate the average value of a specified column across all records.
@@ -204,6 +274,7 @@ class DataHandler:
 		
 		return self.data[data_to_search].mean()
 	
+	@tool_handler
 	def get_average_values_by_data(
 			self,
 			data_to_group: _literal_data_type,
@@ -224,6 +295,7 @@ class DataHandler:
 		
 		return self.data.groupby(data_to_group)[data_to_search].mean()
 	
+	@tool_handler
 	def get_data_count(self, data_to_group: _literal_data_type):
 		"""
 		Count the number of records for each group in one or more specified columns.
@@ -238,6 +310,7 @@ class DataHandler:
 		
 		return self.data.groupby(data_to_group).size()
 	
+	@tool_handler
 	def get_data_count_percentage(self, data_to_group: _literal_data_type):
 		"""
 		Calculate the percentage of records for each group in one or more specified columns.
@@ -254,6 +327,7 @@ class DataHandler:
 		
 		return self.get_data_count(data_to_group).apply(lambda x: f"{(x / all_data_count) * 100:.2f}%")
 	
+	@tool_handler
 	def get_data_count_with_value_percentage(
 			self,
 			data_to_group: _literal_data_type,
@@ -286,6 +360,7 @@ class DataHandler:
 		
 		return self.get_data_count_with_value(data_to_group, data_to_search, value, method).apply(lambda x: f"{(x / all_data_count) * 100:.2f}%")
 	
+	@tool_handler
 	def get_max_values_by_data(
 			self,
 			data_to_group: _literal_data_type,
@@ -306,6 +381,7 @@ class DataHandler:
 		
 		return self.data.groupby(data_to_group)[data_to_search].max()
 	
+	@tool_handler
 	def get_min_values_by_data(
 			self,
 			data_to_group: _literal_data_type,
@@ -326,6 +402,7 @@ class DataHandler:
 		
 		return self.data.groupby(data_to_group)[data_to_search].min()
 	
+	@tool_handler
 	def get_sum_value(self, data_to_search: _single_value_data_type):
 		"""
 		Calculate the total sum of values in a specified column across all records.
@@ -340,6 +417,7 @@ class DataHandler:
 		
 		return self.data[data_to_search].sum()
 	
+	@tool_handler
 	def get_sum_values_by_data(
 			self,
 			data_to_group: _literal_data_type,
@@ -360,6 +438,7 @@ class DataHandler:
 		
 		return self.data.groupby(data_to_group)[data_to_search].sum()
 	
+	@tool_handler
 	def get_value_above_or_below(
 			self,
 			data_to_search: _single_literal_data_type,
@@ -384,6 +463,7 @@ class DataHandler:
 		
 		return f"{data_to_search}: above {value} - {data_above_value} ({data_above_value / all_data_count * 100:.2f}%), below {value} - {data_below_value} ({data_below_value / all_data_count * 100:.2f}%)"
 	
+	@tool_handler
 	def get_values_percentage(self, data_to_search: _single_literal_data_type):
 		"""
 		Calculate the percentage of records in equal-width bins for a specified column.
@@ -416,6 +496,7 @@ class DataHandler:
 				}
 		).sort_values(by="Value")
 	
+	@tool_handler
 	def get_data_count_with_value(
 			self,
 			data_to_group: _literal_data_type,

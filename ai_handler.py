@@ -148,6 +148,7 @@ class AI_Handler:
 			role (Literal["human", "user", "ai", "assistant", "function", tool", "system", "developer"]): The role of the message sender.
 			message (str): The content of the message.
 		"""
+		
 		current_cache = self.messages_cache["messages"]
 		
 		if len(current_cache) >= self.messages_cache_size:
