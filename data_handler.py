@@ -58,18 +58,23 @@ def _compare_value(
 	
 	if comparison_operator == "gt":
 		return data[data[value_data_type] > value_to_compare]
-	elif comparison_operator == "ge":
+
+	if comparison_operator == "ge":
 		return data[data[value_data_type] >= value_to_compare]
-	elif comparison_operator == "lt":
+
+	if comparison_operator == "lt":
 		return data[data[value_data_type] < value_to_compare]
-	elif comparison_operator == "le":
+
+	if comparison_operator == "le":
 		return data[data[value_data_type] <= value_to_compare]
-	elif comparison_operator == "eq":
+
+	if comparison_operator == "eq":
 		return data[data[value_data_type] == value_to_compare]
-	elif comparison_operator == "ne":
+
+	if comparison_operator == "ne":
 		return data[data[value_data_type] != value_to_compare]
-	else:
-		raise ValueError("Invalid comparison operator.")
+
+	raise ValueError("Invalid comparison operator.")
 
 
 def _validate_types_len(*types: Sequence[Any]) -> bool:

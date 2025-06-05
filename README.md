@@ -177,3 +177,8 @@ This script serves as the primary entry point for the application, initializing 
     *   If the user inputs an empty string, the loop breaks, and the application gracefully exits.
     *   For any non-empty input, it invokes the AI agent with the user's query using `agent.invoke_agent(input_)`.
     *   Prints the comprehensive response received from the AI agent to the console, allowing users to see the analysis results or further questions from the agent.
+
+
+## **Note:**
+
+Please be aware that the `test_conditions` folder contains files related to the test assignment. You are welcome to attempt to solve it independently, if you wish.
